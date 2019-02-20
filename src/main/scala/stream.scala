@@ -12,8 +12,12 @@ import org.apache.spark.ml.tree.{Node, InternalNode, LeafNode, Split,Categorical
 import scala.collection.mutable.Builder
 import org.apache.spark.ml._
 import org.apache.spark.sql.types.{StringType, IntegerType, DoubleType,StructField, StructType}
+import org.apache.log4j.Logger
+import org.apache.log4j.Level
+
 
 object Main extends App { 
+    Logger.getLogger("org").setLevel(Level.WARN)
 
     val sparkSession = SparkSession.builder
       .master("local")
@@ -30,20 +34,29 @@ object Main extends App {
         StructField("feature5", DoubleType)))
 
     /// load the model pipeline
-    val model = PipelineModel.read.load("/Users/joeblue/nodejs/streaming/testrf")
+    val model_rf = PipelineModel.read.load("/Users/joeblue/nodejs/streaming/testrf")
+    val model_mlp = PipelineModel.read.load("/Users/joeblue/nodejs/streaming/testmlp")
+    val evalAUC = new BinaryClassificationEvaluator().setLabelCol("target").setMetricName("areaUnderROC").setRawPredictionCol("probability")
 
     //create stream from folder
-    val fileStreamDf = sparkSession.readStream
+    val inputDF = sparkSession.readStream
       .option("header", "true")
       .schema(schema)
       .csv("/Users/joeblue/nodejs/streaming/stream_test")
 
-    val query = fileStreamDf.writeStream
-      .format("console")
-      .outputMode(OutputMode.Append()).start()
+    // apply random forest 
+    val name_rf = "RandFor_feb22"
+    val pred_rf = model_rf.transform(inputDF)
+    //val auc_rf = evalAUC.evaluate(pred_rf)
 
+    // apply MLP 
+    val name_mlp = "Neural_feb22"
+    val pred_mlp = model_mlp.transform(inputDF)
+    //val auc_mlp = evalAUC.evaluate(pred_mlp)
+
+
+    // write final DF as stream
+    val query = pred_rf.writeStream.format("console").outputMode(OutputMode.Append()).start()
     query.awaitTermination()
-
-
 
 }

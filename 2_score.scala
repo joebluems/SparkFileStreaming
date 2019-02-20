@@ -10,9 +10,14 @@ import org.apache.spark.ml._
 
 //load data , load  pipeline , score data
 val df = spark.read.option("header", "true").option("inferSchema", "true").csv("sample1000.csv")
-val model = PipelineModel.read.load("testrf")
-val predictions = model.transform(df)
+val evalAUC = new BinaryClassificationEvaluator().setLabelCol("target").setMetricName("areaUnderROC").setRawPredictionCol("probability")
+val model_rf = PipelineModel.read.load("testrf")
+val model_mlp = PipelineModel.read.load("testmlp")
 
-val evaluatorAUROC = new BinaryClassificationEvaluator().
-  setLabelCol("target").setMetricName("areaUnderROC").setRawPredictionCol("probability")
-val auroc = evaluatorAUROC.evaluate(predictions)
+// score data and calculate AUC - random forest
+val pred_rf = model_rf.transform(df)
+val auc_rf = evalAUC.evaluate(pred_rf)
+
+// score data and calculate AUC - neural net
+val pred_mlp = model_mlp.transform(df)
+val auc_mlp = evalAUC.evaluate(pred_mlp)
