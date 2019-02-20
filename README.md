@@ -1,9 +1,11 @@
 # SparkFileStreaming
-Read a ML model from file, then watch a folder for new batches to be scored
+Loads ML models from files, then watches the folder "stream_test" for new batches to be scored
 
-### 1. Built a Spark ML pipeline random forest model and tested the loading & scoring with the *.scala files
-### 2. The RF model is stored in "testrf" folder
+### 1. Pre-built models - code for training and testing is in the scala files...
+### 2. Location of models used by streaming - ./testrf, ./testmlp and ./testkmeans
 ### 3. Change the file locations and spark version as needed in build.sbt
-### 4. build the project with sbt package
-### 5. Run the project: spark-submit --class com.mapr.streamtest.Main target/scala-2.11/filestreaming_2.11-0.1-SNAPSHOT.jar
-### 6. In another window, copy the file sample.csv into the stream_test folder
+### 4. build the project: > sbt package
+### 5. Run the project:  > sbt run
+### 6. Send a batch in another window: > head -10 sample1000.csv > stream_test/1.csv
+
+### Note: currently the model calculates scores for all models but only outputs one set.
