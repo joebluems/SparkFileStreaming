@@ -9,6 +9,7 @@ import org.apache.spark.ml.Pipeline
 import org.apache.spark.ml.classification.{RandomForestClassifier, RandomForestClassificationModel}
 import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
 import org.apache.spark.ml.tree.{Node, InternalNode, LeafNode, Split,CategoricalSplit, ContinuousSplit}
+import org.apache.spark.ml.evaluation.ClusteringEvaluator
 import scala.collection.mutable.Builder
 import org.apache.spark.ml._
 import org.apache.spark.sql.types.{StringType, IntegerType, DoubleType,StructField, StructType}
@@ -33,15 +34,16 @@ object Main extends App {
         StructField("feature4", DoubleType),
         StructField("feature5", DoubleType)))
 
-    /// load the model pipeline
+    /// load the models ...
     val model_rf = PipelineModel.read.load("/Users/joeblue/nodejs/streaming/testrf")
     val model_mlp = PipelineModel.read.load("/Users/joeblue/nodejs/streaming/testmlp")
+    val model_kmeans = PipelineModel.read.load("/Users/joeblue/nodejs/streaming/testkmeans")
     val evalAUC = new BinaryClassificationEvaluator().setLabelCol("target").setMetricName("areaUnderROC").setRawPredictionCol("probability")
+    val evaluator = new ClusteringEvaluator()
 
     //create stream from folder
     val inputDF = sparkSession.readStream
-      .option("header", "true")
-      .schema(schema)
+      .option("header", "true").schema(schema)
       .csv("/Users/joeblue/nodejs/streaming/stream_test")
 
     // apply random forest 
@@ -54,6 +56,10 @@ object Main extends App {
     val pred_mlp = model_mlp.transform(inputDF)
     //val auc_mlp = evalAUC.evaluate(pred_mlp)
 
+    // apply Kmeans and get MSE
+    val name_kmeans = "Canary"
+    val pred_kmeans = model_kmeans.transform(inputDF)
+    //val silhouette = evaluator.evaluate(pred_kmeans)
 
     // write final DF as stream
     val query = pred_rf.writeStream.format("console").outputMode(OutputMode.Append()).start()

@@ -3,6 +3,8 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.ml.feature.{Bucketizer, StringIndexer, VectorAssembler}
 import org.apache.spark.ml.Pipeline
 import org.apache.spark.ml.classification.{RandomForestClassifier, RandomForestClassificationModel}
+import org.apache.spark.ml.clustering.KMeans
+import org.apache.spark.ml.evaluation.ClusteringEvaluator
 import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
 import org.apache.spark.ml.classification.MultilayerPerceptronClassifier
 import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
@@ -33,12 +35,21 @@ def getNeuralPipe( continuousFeatures: Seq[String] ): Pipeline = {
  pipeline
 }
 
+/// K-means pipeline
+def getKmeansPipe( continuousFeatures: Seq[String] ): Pipeline = {
+ val assembler = new VectorAssembler().setInputCols((continuousFeatures ).toArray).setOutputCol("features")
+ val kmeans = new KMeans().setK(5).setFeaturesCol("features").setPredictionCol("prediction")
+ val pipeline = new Pipeline().setStages(Array(assembler,kmeans))
+ pipeline
+}
+
 
 /// sample and create pipelines
 val continuousFeatures = Seq("feature1","feature2","feature3","feature4","feature5")
 val Array(train, test) = df.randomSplit(Array(0.8, 0.2), seed=199)
 val pipe_rf = getRandomPipe( continuousFeatures)
 val pipe_mlp = getNeuralPipe( continuousFeatures)
+val pipe_kmeans = getKmeansPipe( continuousFeatures)
 val evaluatorAUROC = new BinaryClassificationEvaluator().setLabelCol("target").setMetricName("areaUnderROC").setRawPredictionCol("probability")
 
 
@@ -46,13 +57,21 @@ val evaluatorAUROC = new BinaryClassificationEvaluator().setLabelCol("target").s
 val model_rf = pipe_rf.fit(train)
 val pred_rf = model_rf.transform(test)
 val auc_rf = evaluatorAUROC.evaluate(pred_rf)
-model_rf.write.overwrite.save("testrf")
+//model_rf.write.overwrite.save("testrf")
 
 
 // fit nnet model on train and evaluate on test set
 val model_mlp = pipe_mlp.fit(train)
 val pred_mlp = model_mlp.transform(test)
 val auc_mlp = evaluatorAUROC.evaluate(pred_mlp)
-model_mlp.write.overwrite.save("testmlp")
+//model_mlp.write.overwrite.save("testmlp")
+
+
+// fit kmeans cluster on train and calculate MSE on test set
+val model_kmeans = pipe_kmeans.fit(train)
+val pred_kmeans = model_kmeans.transform(test)
+val evaluator = new ClusteringEvaluator()
+val silhouette = evaluator.evaluate(pred_kmeans)
+model_kmeans.write.overwrite.save("testkmeans")
 
 
